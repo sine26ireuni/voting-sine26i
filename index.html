@@ -1081,7 +1081,7 @@ input[type="password"]:focus { border-color:var(--blue); background:var(--white)
         </div>
       </div>
 
-      <button class="btn-gold" id="btnKirim" onclick="kirim()" disabled>
+      <button type="button" class="btn-gold" id="btnKirim" onclick="kirim()">
         <span id="btnKirimText">Kirim Suara Saya ✦</span>
       </button>
       <button class="btn-outline" onclick="backToStep1()">← Ubah Data Diri</button>
@@ -1555,7 +1555,7 @@ function backToStep1() {
   document.getElementById('vcYes').classList.remove('selected');
   document.getElementById('vcNo').classList.remove('selected');
   document.getElementById('slideAlasan').classList.remove('open');
-  document.getElementById('btnKirim').disabled = true;
+  document.getElementById('btnKirim').disabled = false;
   setStep(1);
 }
 
@@ -1564,77 +1564,174 @@ function backToStep1() {
 // ============================================================
 function pilih(p) {
   voteChoice = p;
-  document.getElementById('vcYes').classList.toggle('selected', p === 'ya');
-  document.getElementById('vcNo').classList.toggle('selected', p === 'tidak');
-  document.getElementById('slideAlasan').classList.toggle('open', p === 'tidak');
-  document.getElementById('btnKirim').disabled = false;
+
+  const yes = document.getElementById('vcYes');
+  const no  = document.getElementById('vcNo');
+  const alasan = document.getElementById('slideAlasan');
+  const btn = document.getElementById('btnKirim');
+
+  if (yes) yes.classList.toggle('selected', p === 'ya');
+  if (no) no.classList.toggle('selected', p === 'tidak');
+  if (alasan) alasan.classList.toggle('open', p === 'tidak');
+
+  // Tombol kirim sengaja tidak dibuat disabled, supaya klik selalu memberi respons validasi.
+  if (btn) {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+  }
 }
 
+function getSelectedVoteChoice() {
+  if (voteChoice) return voteChoice;
+  const yes = document.getElementById('vcYes');
+  const no  = document.getElementById('vcNo');
+  if (yes && yes.classList.contains('selected')) return 'ya';
+  if (no && no.classList.contains('selected')) return 'tidak';
+  return '';
+}
+
+function getSelectedPatunganChoice() {
+  if (window.patunganChoice) return window.patunganChoice;
+  const ya = document.getElementById('vcPatunganYa');
+  const tidak = document.getElementById('vcPatunganTidak');
+  if (ya && ya.classList.contains('vc-patungan-ya')) return 'ya';
+  if (tidak && tidak.classList.contains('vc-patungan-tidak')) return 'tidak';
+  return '';
+}
+
+function scrollToEl(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function sendToSheetsInBackground(entry) {
+  const gsUrl = getGsUrl();
+  if (!gsUrl || !gsUrl.startsWith('https://script.google.com')) return;
+
+  try {
+    // Beacon lebih ringan, tidak menahan perpindahan ke halaman sukses.
+    if (navigator.sendBeacon) {
+      const blob = new Blob([JSON.stringify(entry)], { type: 'text/plain;charset=UTF-8' });
+      const ok = navigator.sendBeacon(gsUrl, blob);
+      if (ok) return;
+    }
+  } catch (e) {}
+
+  try {
+    fetch(gsUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(entry),
+      keepalive: true
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+let isSubmittingVote = false;
+
 async function kirim() {
+  if (isSubmittingVote) return;
+
+  if (!validateStep1()) {
+    showToast('⚠️ Data diri belum lengkap. Cek Nama, NIP, Kontingen, dan Instansi.');
+    scrollToEl('cardIdentitas');
+    return;
+  }
+
   const d = loadData();
   if (!d.isOpen) { showToast('⛔ Voting sudah ditutup'); return; }
-  if (!voteChoice) return;
 
-  const nama      = document.getElementById('fNama').value.trim();
-  const nip       = document.getElementById('fNip').value.trim();
-  const kontingen = document.getElementById('fKontingen').value.trim();
-  const instansi  = document.getElementById('fInstansi').value.trim();
-  const alasan    = document.getElementById('fAlasan').value.trim();
-  const konsep    = document.getElementById('fKonsep').value.trim();
-  const lokasi    = document.getElementById('fLokasi').value.trim();
-  const saran     = document.getElementById('fSaran').value.trim();
-  const patungan  = window.patunganChoice || '';
-  const iuran       = document.getElementById('fIuran').value.trim();
-  const alasanIuran = document.getElementById('fAlasanIuran').value.trim();
+  voteChoice = getSelectedVoteChoice();
+  if (!voteChoice) {
+    showToast('⚠️ Pilih dulu: Setuju atau Belum Bisa.');
+    scrollToEl('vcYes');
+    return;
+  }
+
+  const nama      = getVal('fNama');
+  const nip       = getVal('fNip');
+  const kontingen = getVal('fKontingen');
+  const instansi  = getVal('fInstansi');
+  const alasan    = getVal('fAlasan');
+  const konsep    = getVal('fKonsep');
+  const lokasi    = getVal('fLokasi');
+  const saran     = getVal('fSaran');
+  const patungan  = getSelectedPatunganChoice();
+  const iuran       = getVal('fIuran');
+  const alasanIuran = getVal('fAlasanIuran');
   const waktu     = new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
-  const entry = { nama, nip, kontingen, instansi, pilihan: voteChoice, alasan: voteChoice==='tidak'?alasan:'', patungan, iuran, alasanIuran: patungan==='tidak'?alasanIuran:'', konsep, lokasi, saran, waktu };
+  if (d.votes && d.votes.find(v => String(v.nip) === String(nip))) {
+    showToast('⚠️ NIP ini sudah terdaftar!');
+    return;
+  }
 
-  // SIMPAN LOKAL
+  const entry = {
+    nama,
+    nip,
+    kontingen,
+    instansi,
+    pilihan: voteChoice,
+    alasan: voteChoice === 'tidak' ? alasan : '',
+    patungan,
+    iuran,
+    alasanIuran: patungan === 'tidak' ? alasanIuran : '',
+    konsep,
+    lokasi,
+    saran,
+    waktu
+  };
+
+  isSubmittingVote = true;
+
+  const btn = document.getElementById('btnKirim');
+  const btnText = document.getElementById('btnKirimText');
+  if (btn) btn.disabled = true;
+  if (btnText) btnText.innerHTML = '<span class="spinner"></span> Menyimpan...';
+
+  // Simpan lokal dulu agar pengguna langsung mendapat respons. Jangan menunggu Google Sheets yang kadang hobi meditasi.
   d.votes.push(entry);
   saveData(d);
 
-  // UI: loading
-  const btn = document.getElementById('btnKirim');
-  btn.disabled = true;
-  document.getElementById('btnKirimText').innerHTML = '<span class="spinner"></span> Menyimpan...';
+  // Tampilkan sukses langsung.
+  const cardPilihan = document.getElementById('cardPilihan');
+  const cardSukses  = document.getElementById('cardSukses');
+  if (cardPilihan) cardPilihan.style.display = 'none';
+  if (cardSukses) cardSukses.style.display = '';
 
-  // KIRIM KE GOOGLE SHEETS
-  const gsUrl = getGsUrl();
-  if (gsUrl && gsUrl.startsWith('https://script.google.com')) {
-    try {
-      await fetch(gsUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry)
-      });
-    } catch(e) { /* no-cors selalu resolve */ }
+  const pilLabel = voteChoice === 'ya' ? '✅ SETUJU' : '❌ TIDAK / BELUM BISA';
+  const successData = document.getElementById('successData');
+  if (successData) {
+    successData.innerHTML = `
+      <div class="success-data-row"><span class="key">Nama</span><span class="val">${esc(nama)}</span></div>
+      <div class="success-data-row"><span class="key">NIP</span><span class="val">${esc(nip)}</span></div>
+      <div class="success-data-row"><span class="key">Kontingen</span><span class="val">${esc(kontingen)}</span></div>
+      <div class="success-data-row"><span class="key">Instansi</span><span class="val">${esc(instansi)}</span></div>
+      <div class="success-data-row"><span class="key">Pilihan</span><span class="val">${pilLabel}</span></div>
+      ${alasan && voteChoice === 'tidak' ? `<div class="success-data-row"><span class="key">Alasan</span><span class="val">${esc(alasan)}</span></div>` : ''}
+      ${konsep ? `<div class="success-data-row"><span class="key">Konsep</span><span class="val">${esc(konsep)}</span></div>` : ''}
+      ${lokasi ? `<div class="success-data-row"><span class="key">Lokasi</span><span class="val">${esc(lokasi)}</span></div>` : ''}
+      ${patungan ? `<div class="success-data-row"><span class="key">Iuran</span><span class="val">${patungan === 'ya' ? '✅ Bersedia' : '🙏 Belum Bisa'}</span></div>` : ''}
+      ${iuran ? `<div class="success-data-row"><span class="key">Nominal Iuran</span><span class="val">Rp ${parseInt(iuran).toLocaleString('id-ID')}</span></div>` : ''}
+      ${alasanIuran && patungan === 'tidak' ? `<div class="success-data-row"><span class="key">Alasan Tdk Iuran</span><span class="val">${esc(alasanIuran)}</span></div>` : ''}
+      ${saran ? `<div class="success-data-row"><span class="key">Saran</span><span class="val">${esc(saran)}</span></div>` : ''}
+    `;
   }
-
-  // TAMPILKAN SUKSES
-  document.getElementById('cardPilihan').style.display = 'none';
-  document.getElementById('cardSukses').style.display = '';
-
-  const pilLabel = voteChoice === 'ya' ? '✅ SETUJU' : '❌ TIDAK SETUJU';
-  document.getElementById('successData').innerHTML = `
-    <div class="success-data-row"><span class="key">Nama</span><span class="val">${esc(nama)}</span></div>
-    <div class="success-data-row"><span class="key">NIP</span><span class="val">${esc(nip)}</span></div>
-    <div class="success-data-row"><span class="key">Kontingen</span><span class="val">${esc(kontingen)}</span></div>
-    <div class="success-data-row"><span class="key">Instansi</span><span class="val">${esc(instansi)}</span></div>
-    <div class="success-data-row"><span class="key">Pilihan</span><span class="val">${pilLabel}</span></div>
-    ${alasan && voteChoice==='tidak' ? `<div class="success-data-row"><span class="key">Alasan</span><span class="val">${esc(alasan)}</span></div>` : ''}
-    ${konsep ? `<div class="success-data-row"><span class="key">Konsep</span><span class="val">${esc(konsep)}</span></div>` : ''}
-    ${lokasi ? `<div class="success-data-row"><span class="key">Lokasi</span><span class="val">${esc(lokasi)}</span></div>` : ''}
-    ${patungan ? `<div class="success-data-row"><span class="key">Iuran</span><span class="val">${patungan==='ya'?'✅ Bersedia':'🙏 Belum Bisa'}</span></div>` : ''}
-    ${iuran ? `<div class="success-data-row"><span class="key">Nominal Iuran</span><span class="val">Rp ${parseInt(iuran).toLocaleString('id-ID')}</span></div>` : ''}
-    ${alasanIuran && patungan==='tidak' ? `<div class="success-data-row"><span class="key">Alasan Tdk Iuran</span><span class="val">${esc(alasanIuran)}</span></div>` : ''}
-    ${saran ? `<div class="success-data-row"><span class="key">Saran</span><span class="val">${esc(saran)}</span></div>` : ''}
-  `;
 
   setStep(3);
   showToast('🎖️ Suara berhasil tercatat!');
   window.scrollTo({top:0,behavior:'smooth'});
+
+  // Kirim Google Sheets di belakang layar. Hidup terlalu pendek untuk menunggu Apps Script cold start.
+  sendToSheetsInBackground(entry);
+
+  setTimeout(() => {
+    isSubmittingVote = false;
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.textContent = 'Kirim Suara Saya ✦';
+  }, 1200);
 }
 
 function resetForm() {
@@ -1650,7 +1747,7 @@ function resetForm() {
   document.getElementById('vcNo').classList.remove('selected');
   document.getElementById('slideAlasan').classList.remove('open');
   document.getElementById('btnLanjut').disabled = false;
-  document.getElementById('btnKirim').disabled = true;
+  document.getElementById('btnKirim').disabled = false;
   document.getElementById('btnKirimText').textContent = 'Kirim Suara Saya ✦';
   document.getElementById('cardSukses').style.display = 'none';
   document.getElementById('cardIdentitas').style.display = '';
@@ -1827,6 +1924,18 @@ function toggleVoting() {
 // ============================================================
 // FETCH DATA DARI GOOGLE SHEETS — untuk Panel Admin
 // ============================================================
+
+async function fetchJsonWithTimeout(url, ms = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const resp = await fetch(url, { method: 'GET', cache: 'no-store', signal: controller.signal });
+    return await resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchFromSheets() {
   const url = getGsUrl();
   const sub = document.getElementById('hasilSub');
@@ -1990,28 +2099,38 @@ async function loadDashboard() {
   const btn = document.getElementById('btnDashRefresh');
   if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
 
-  // Try fetch from Sheets first
   const url = getGsUrl();
-  let votes = loadData().votes;
+  let votes = loadData().votes || [];
 
-  if (url && url.startsWith('https://script.google.com')) {
-    try {
-      const resp = await fetch(url + '?t=' + Date.now());
-      const data = await resp.json();
-      if (data.status === 'ok') {
-        votes = data.votes;
-        const d = loadData();
-        d.votes = votes;
-        saveData(d);
-      }
-    } catch(e) {}
+  // Render lokal dulu, supaya dashboard terasa cepat.
+  renderDashboard(votes);
+  const nowLocal = new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  const last = document.getElementById('dashLastUpdate');
+  if (last) last.textContent = nowLocal + ' (lokal)';
+
+  if (!url || !url.startsWith('https://script.google.com')) {
+    if (btn) { btn.innerHTML = '🔄 Refresh'; btn.disabled = false; }
+    return;
   }
 
-  renderDashboard(votes);
-
-  const now = new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-  document.getElementById('dashLastUpdate').textContent = now;
-  if (btn) { btn.innerHTML = '🔄 Refresh'; btn.disabled = false; }
+  try {
+    const data = await fetchJsonWithTimeout(url + '?t=' + Date.now(), 5000);
+    if (data && data.status === 'ok' && Array.isArray(data.votes)) {
+      votes = data.votes;
+      const d = loadData();
+      d.votes = votes;
+      saveData(d);
+      renderDashboard(votes);
+      const now = new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      if (last) last.textContent = now + ' (Sheets)';
+    } else {
+      showToast('⚠️ Data Sheets belum terbaca, dashboard pakai data lokal.');
+    }
+  } catch(e) {
+    showToast('⚠️ Sheets lambat/gagal, dashboard pakai data lokal dulu.');
+  } finally {
+    if (btn) { btn.innerHTML = '🔄 Refresh'; btn.disabled = false; }
+  }
 }
 
 function renderDashboard(votes) {
@@ -2208,6 +2327,14 @@ async function hapusData(nip) {
     el.addEventListener('change', validateStep1);
   });
   validateStep1();
+
+  const btnKirim = document.getElementById('btnKirim');
+  if (btnKirim) {
+    btnKirim.disabled = false;
+    btnKirim.style.opacity = '1';
+    btnKirim.style.cursor = 'pointer';
+  }
+
 
   const overlayAdmin = document.getElementById('overlayAdmin');
   if (overlayAdmin) {

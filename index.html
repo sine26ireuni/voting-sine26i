@@ -1500,7 +1500,11 @@ function pilihIuran(el, val) {
 }
 
 function validateStep1() {
-  const ok = fv('fNama') && fv('fNip') && fv('fKontingen') && fv('fInstansi');
+  const nama      = document.getElementById('fNama').value.trim();
+  const nip       = document.getElementById('fNip').value.trim();
+  const kontingen = document.getElementById('fKontingen').value;
+  const instansi  = document.getElementById('fInstansi').value.trim();
+  const ok = nama.length > 0 && nip.length > 0 && kontingen !== '' && instansi.length > 0;
   document.getElementById('btnLanjut').disabled = !ok;
 }
 function fv(id) { return document.getElementById(id).value.trim().length > 0; }

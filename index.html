@@ -935,7 +935,7 @@ input[type="password"]:focus { border-color:var(--blue); background:var(--white)
         <input type="text" id="fInstansi" placeholder="Nama instansi penempatan tugas saat ini" oninput="validateStep1()">
       </div>
 
-      <button class="btn-gold" id="btnLanjut" onclick="goToStep2()" disabled>
+      <button type="button" class="btn-gold" id="btnLanjut" onclick="goToStep2()">
         Lanjut Pilih Suara →
       </button>
     </div>
@@ -1392,18 +1392,6 @@ function doPost(e) {
   </div>
 </div>
 
-<!-- MODAL KONFIRMASI HAPUS DATA -->
-<div class="overlay" id="overlayHapus">
-  <div class="modal">
-    <h3>Konfirmasi Hapus Data</h3>
-    <p id="hapusNamaText">Yakin hapus data ini?</p>
-    <button class="btn-danger" onclick="hapusData()" style="width:100%;margin-top:8px;">
-      Ya, Hapus Data
-    </button>
-    <button class="btn-outline" onclick="tutupModalHapus()">Batal</button>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1512,25 +1500,50 @@ function pilihIuran(el, val) {
   document.getElementById('fIuran').value = val;
 }
 
-function validateStep1() {
-  const nama      = document.getElementById('fNama').value.trim();
-  const nip       = document.getElementById('fNip').value.trim();
-  const kontingen = document.getElementById('fKontingen').value;
-  const instansi  = document.getElementById('fInstansi').value.trim();
-  const ok = nama.length > 0 && nip.length > 0 && kontingen !== '' && instansi.length > 0;
-  document.getElementById('btnLanjut').disabled = !ok;
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
 }
-function fv(id) { return document.getElementById(id).value.trim().length > 0; }
+
+function validateStep1() {
+  const nama      = getVal('fNama');
+  const nip       = getVal('fNip');
+  const kontingen = getVal('fKontingen');
+  const instansi  = getVal('fInstansi');
+  const ok = nama !== '' && nip !== '' && kontingen !== '' && instansi !== '';
+
+  const btn = document.getElementById('btnLanjut');
+  if (btn) {
+    // Tombol tetap bisa diklik agar user mendapat pesan validasi, bukan diam seperti patung.
+    btn.disabled = false;
+    btn.style.opacity = ok ? '1' : '0.85';
+    btn.style.cursor = 'pointer';
+  }
+
+  return ok;
+}
+function fv(id) { return getVal(id).length > 0; }
 
 function goToStep2() {
+  if (!validateStep1()) {
+    showToast('⚠️ Lengkapi dulu Nama, NIP, Kontingen, dan Instansi.');
+    return;
+  }
+
   const d = loadData();
   if (!d.isOpen) { showToast('⛔ Voting sudah ditutup'); return; }
-  const nip = document.getElementById('fNip').value.trim();
-  if (d.votes.find(v => v.nip === nip)) {
-    showToast('⚠️ NIP ini sudah terdaftar!'); return;
+
+  const nip = getVal('fNip');
+  if (d.votes && d.votes.find(v => String(v.nip) === String(nip))) {
+    showToast('⚠️ NIP ini sudah terdaftar!');
+    return;
   }
-  document.getElementById('cardIdentitas').style.display = 'none';
-  document.getElementById('cardPilihan').style.display = '';
+
+  const cardIdentitas = document.getElementById('cardIdentitas');
+  const cardPilihan = document.getElementById('cardPilihan');
+  if (cardIdentitas) cardIdentitas.style.display = 'none';
+  if (cardPilihan) cardPilihan.style.display = '';
+
   setStep(2);
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1636,7 +1649,7 @@ function resetForm() {
   document.getElementById('vcYes').classList.remove('selected');
   document.getElementById('vcNo').classList.remove('selected');
   document.getElementById('slideAlasan').classList.remove('open');
-  document.getElementById('btnLanjut').disabled = true;
+  document.getElementById('btnLanjut').disabled = false;
   document.getElementById('btnKirim').disabled = true;
   document.getElementById('btnKirimText').textContent = 'Kirim Suara Saya ✦';
   document.getElementById('cardSukses').style.display = 'none';
@@ -1769,7 +1782,7 @@ function renderAdmin(votesOverride) {
         <td style="font-size:11px;color:var(--text2);font-style:italic;max-width:180px">${v.saran?'"'+esc(v.saran)+'"':'—'}</td>
         <td style="font-size:11px;color:var(--text2);white-space:nowrap">${v.waktu}</td>
         <td>
-          <button class="btn-delete-vote" data-nip="${escAttr(v.nip)}" data-nama="${escAttr(v.nama)}"
+          <button type="button" class="btn-delete-vote" data-nip="${escAttr(v.nip)}" data-nama="${escAttr(v.nama)}"
             style="padding:5px 12px;border-radius:7px;border:none;background:var(--red-l);
                    color:var(--red);font-size:11px;font-weight:700;cursor:pointer;
                    transition:all 0.2s;white-space:nowrap;"
@@ -1780,8 +1793,11 @@ function renderAdmin(votesOverride) {
         </td>
       </tr>
     `).join('');
+
     tbody.querySelectorAll('.btn-delete-vote').forEach(btn => {
-      btn.addEventListener('click', () => konfirmasiHapus(btn.dataset.nip, btn.dataset.nama));
+      btn.addEventListener('click', function() {
+        konfirmasiHapus(this.dataset.nip, this.dataset.nama);
+      });
     });
   }
 }
@@ -1874,9 +1890,13 @@ async function syncSheets() {
 
 function exportCSV() {
   const d = loadData();
-  if (d.votes.length === 0) { showToast('⚠️ Belum ada data untuk diexport'); return; }
+  if (!d.votes || d.votes.length === 0) { showToast('⚠️ Belum ada data untuk diexport'); return; }
 
-  const header = ['No','Nama Lengkap','NIP','Asal Kontingen','Instansi / Unit Kerja','Pilihan','Alasan Tidak Setuju','Patungan','Nominal Iuran','Alasan Tidak Iuran','Konsep Kegiatan','Lokasi IPDN','Saran & Masukan','Waktu'];
+  const header = [
+    'No','Nama Lengkap','NIP','Asal Kontingen','Instansi / Unit Kerja',
+    'Pilihan','Alasan Tidak Setuju','Patungan','Nominal Iuran',
+    'Alasan Tidak Iuran','Konsep Kegiatan','Lokasi IPDN','Saran & Masukan','Waktu'
+  ];
   const rows = d.votes.map((v, i) => [
     i + 1,
     v.nama || '',
@@ -1909,7 +1929,7 @@ function exportCSV() {
   const a = document.createElement('a');
   a.style.display = 'none';
   a.href = url;
-  a.download = 'Voting_Reuni_SINE26I_2025.csv';
+  a.download = 'Voting_Reuni_SINE26I_2026.csv';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
@@ -1938,6 +1958,10 @@ function escAttr(s) {
 
 function showToast(msg) {
   const t = document.getElementById('toast');
+  if (!t) {
+    alert(String(msg).replace(/<[^>]*>/g, ''));
+    return;
+  }
   t.innerHTML = msg;
   t.classList.add('show');
   clearTimeout(window._toastTimer);
@@ -2113,37 +2137,44 @@ function renderDashboard(votes) {
 }
 
 // ============================================================
-// HAPUS DATA
+// HAPUS DATA - TANPA OVERLAY / MODAL CUSTOM
 // ============================================================
 let nipToDelete = null;
 
 function konfirmasiHapus(nip, nama) {
   nipToDelete = nip;
-  document.getElementById('hapusNamaText').textContent = 'Yakin hapus data milik ' + nama + '?';
-  document.getElementById('overlayHapus').classList.add('open');
+  const yakin = window.confirm('Yakin hapus data milik ' + (nama || 'peserta ini') + '?');
+  if (!yakin) {
+    nipToDelete = null;
+    return;
+  }
+  hapusData(nipToDelete);
 }
 
 function tutupModalHapus() {
+  // Dipertahankan agar tidak error jika masih ada pemanggilan lama.
   nipToDelete = null;
-  document.getElementById('overlayHapus').classList.remove('open');
 }
 
-async function hapusData() {
-  if (!nipToDelete) return;
+async function hapusData(nip) {
+  const targetNip = nip || nipToDelete;
+  if (!targetNip) return;
+
   const d = loadData();
   const before = d.votes.length;
-  d.votes = d.votes.filter(v => v.nip !== nipToDelete);
+  d.votes = d.votes.filter(v => String(v.nip) !== String(targetNip));
   saveData(d);
-  tutupModalHapus();
   renderAdmin(d.votes);
-  showToast('🗑️ Data berhasil dihapus dari aplikasi');
 
-  // Catatan: hapus manual di Google Sheets juga
   if (before !== d.votes.length) {
+    showToast('🗑️ Data berhasil dihapus dari aplikasi');
     setTimeout(() => {
-      showToast('⚠️ Ingat: hapus juga baris yang sama di Google Sheets!');
+      showToast('⚠️ Jika sudah masuk Google Sheets, hapus juga barisnya di Sheets.');
     }, 2500);
+  } else {
+    showToast('⚠️ Data tidak ditemukan.');
   }
+
   nipToDelete = null;
 }
 
@@ -2155,24 +2186,33 @@ async function hapusData() {
 (function init() {
   const d = loadData();
   const pill = document.getElementById('statusPill');
-  if (!d.isOpen) {
-    pill.className='status-pill pill-closed';
-    pill.textContent='● VOTING CLOSED';
-    document.getElementById('cardIdentitas').style.display='none';
-    document.getElementById('cardClosed').style.display='';
+
+  if (pill) {
+    if (!d.isOpen) {
+      pill.className='status-pill pill-closed';
+      pill.textContent='● VOTING CLOSED';
+      const cardIdentitas = document.getElementById('cardIdentitas');
+      const cardClosed = document.getElementById('cardClosed');
+      if (cardIdentitas) cardIdentitas.style.display='none';
+      if (cardClosed) cardClosed.style.display='';
+    } else {
+      pill.className='status-pill pill-open';
+      pill.textContent='● VOTING OPEN';
+    }
   }
 
-  // Overlay click to close — inside init so DOM is ready
+  ['fNama','fNip','fKontingen','fInstansi'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', validateStep1);
+    el.addEventListener('change', validateStep1);
+  });
+  validateStep1();
+
   const overlayAdmin = document.getElementById('overlayAdmin');
   if (overlayAdmin) {
     overlayAdmin.addEventListener('click',function(e){
       if(e.target===this) closeAdminModal();
-    });
-  }
-  const overlayHapus = document.getElementById('overlayHapus');
-  if (overlayHapus) {
-    overlayHapus.addEventListener('click',function(e){
-      if(e.target===this) tutupModalHapus();
     });
   }
 })();

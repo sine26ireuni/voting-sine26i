@@ -133,6 +133,21 @@ body::before {
 }
 .btn-admin-top:hover { background: var(--navy2); transform: translateY(-1px); }
 
+.btn-dashboard-top {
+  background: var(--blue);
+  border: none;
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+}
+.btn-dashboard-top:hover { background: var(--navy); transform: translateY(-1px); }
+
 /* ============ HERO ============ */
 .hero {
   text-align: center;
@@ -811,6 +826,7 @@ input[type="password"]:focus { border-color:var(--blue); background:var(--white)
   </div>
   <div class="topbar-right">
     <span class="status-pill pill-open" id="statusPill">● VOTING OPEN</span>
+    <button class="btn-dashboard-top" onclick="openDashboard()">📊 Dashboard</button>
     <button class="btn-admin-top" onclick="openAdminModal()">⚙️ Admin</button>
   </div>
 </div>
@@ -870,7 +886,47 @@ input[type="password"]:focus { border-color:var(--blue); background:var(--white)
         </div>
         <div class="field">
           <div class="field-label">Asal Kontingen <span class="req">*</span></div>
-          <input type="text" id="fKontingen" placeholder="Contoh: Kab. Sleman" oninput="validateStep1()">
+          <select id="fKontingen" onchange="validateStep1()">
+            <option value="">— Pilih Provinsi —</option>
+            <option value="Aceh">Aceh</option>
+            <option value="Sumatera Utara">Sumatera Utara</option>
+            <option value="Sumatera Barat">Sumatera Barat</option>
+            <option value="Riau">Riau</option>
+            <option value="Kepulauan Riau">Kepulauan Riau</option>
+            <option value="Jambi">Jambi</option>
+            <option value="Sumatera Selatan">Sumatera Selatan</option>
+            <option value="Kepulauan Bangka Belitung">Kepulauan Bangka Belitung</option>
+            <option value="Bengkulu">Bengkulu</option>
+            <option value="Lampung">Lampung</option>
+            <option value="DKI Jakarta">DKI Jakarta</option>
+            <option value="Jawa Barat">Jawa Barat</option>
+            <option value="Banten">Banten</option>
+            <option value="Jawa Tengah">Jawa Tengah</option>
+            <option value="DI Yogyakarta">DI Yogyakarta</option>
+            <option value="Jawa Timur">Jawa Timur</option>
+            <option value="Bali">Bali</option>
+            <option value="Nusa Tenggara Barat">Nusa Tenggara Barat</option>
+            <option value="Nusa Tenggara Timur">Nusa Tenggara Timur</option>
+            <option value="Kalimantan Barat">Kalimantan Barat</option>
+            <option value="Kalimantan Tengah">Kalimantan Tengah</option>
+            <option value="Kalimantan Selatan">Kalimantan Selatan</option>
+            <option value="Kalimantan Timur">Kalimantan Timur</option>
+            <option value="Kalimantan Utara">Kalimantan Utara</option>
+            <option value="Sulawesi Utara">Sulawesi Utara</option>
+            <option value="Gorontalo">Gorontalo</option>
+            <option value="Sulawesi Tengah">Sulawesi Tengah</option>
+            <option value="Sulawesi Barat">Sulawesi Barat</option>
+            <option value="Sulawesi Selatan">Sulawesi Selatan</option>
+            <option value="Sulawesi Tenggara">Sulawesi Tenggara</option>
+            <option value="Maluku">Maluku</option>
+            <option value="Maluku Utara">Maluku Utara</option>
+            <option value="Papua Barat">Papua Barat</option>
+            <option value="Papua Barat Daya">Papua Barat Daya</option>
+            <option value="Papua">Papua</option>
+            <option value="Papua Selatan">Papua Selatan</option>
+            <option value="Papua Tengah">Papua Tengah</option>
+            <option value="Papua Pegunungan">Papua Pegunungan</option>
+          </select>
         </div>
       </div>
 
@@ -1052,6 +1108,114 @@ input[type="password"]:focus { border-color:var(--blue); background:var(--white)
         <h3>Voting Telah Ditutup</h3>
         <p>Periode voting resmi telah berakhir.<br>Terima kasih atas partisipasimu.<br>Hasil akan diumumkan oleh panitia SINE26I.</p>
       </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ====== PAGE: DASHBOARD ====== -->
+<div class="page" id="pageDashboard">
+  <div class="container" style="padding-top:0;">
+
+    <div class="admin-header">
+      <div>
+        <div class="admin-title">📊 Dashboard <span>Statistik Voting Reuni SINE26I 2026</span></div>
+      </div>
+      <button class="btn-outline" style="width:auto;padding:8px 18px;margin:0;" onclick="exitDashboard()">← Kembali</button>
+    </div>
+
+    <!-- LAST UPDATE -->
+    <div style="max-width:560px;margin:0 auto 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:12px;color:var(--text3);">🕐 Terakhir diperbarui: <span id="dashLastUpdate">—</span></div>
+      <button onclick="loadDashboard()" id="btnDashRefresh"
+        style="padding:7px 16px;border-radius:8px;border:none;background:var(--blue);color:white;
+               font-family:Nunito,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+        🔄 Refresh
+      </button>
+    </div>
+
+    <!-- PROGRESS KESELURUHAN -->
+    <div class="card" style="animation-delay:0s;">
+      <div class="card-header">
+        <div class="card-icon">🗳️</div>
+        <div class="card-title">Progress Voting</div>
+      </div>
+      <div class="card-sub">Total target peserta: <strong>721 alumni SINE26I</strong></div>
+
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:8px;color:var(--text);">
+          <span>Sudah memilih</span>
+          <span id="dashTotalVoted">0 / 721</span>
+        </div>
+        <div style="background:var(--bg2);border-radius:10px;height:18px;overflow:hidden;border:1px solid var(--border);">
+          <div id="dashProgressBar" style="height:100%;border-radius:10px;background:linear-gradient(90deg,var(--blue),#60a5fa);transition:width 1.2s cubic-bezier(.23,1.02,.32,1);width:0%;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:right;" id="dashProgressPct">0% dari target</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div style="background:var(--green-l);border:1.5px solid rgba(16,185,129,0.25);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-family:Cinzel,serif;font-size:1.6rem;font-weight:900;color:var(--green);" id="dashSetuju">0</div>
+          <div style="font-size:11px;color:var(--green);font-weight:700;margin-top:3px;">✅ Setuju Reuni</div>
+        </div>
+        <div style="background:var(--red-l);border:1.5px solid rgba(220,38,38,0.2);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-family:Cinzel,serif;font-size:1.6rem;font-weight:900;color:var(--red);" id="dashTidak">0</div>
+          <div style="font-size:11px;color:var(--red);font-weight:700;margin-top:3px;">❌ Belum Bisa</div>
+        </div>
+        <div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-family:Cinzel,serif;font-size:1.6rem;font-weight:900;color:var(--text3);" id="dashBelum">721</div>
+          <div style="font-size:11px;color:var(--text3);font-weight:700;margin-top:3px;">⏳ Belum Memilih</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HASIL VOTE -->
+    <div class="card" style="animation-delay:0.1s;">
+      <div class="card-header">
+        <div class="card-icon">📈</div>
+        <div class="card-title">Hasil Voting Reuni</div>
+      </div>
+      <div class="card-sub" id="dashHasilSub">—</div>
+      <div id="dashBarArea"></div>
+    </div>
+
+    <!-- STATISTIK IURAN -->
+    <div class="card" style="animation-delay:0.15s;">
+      <div class="card-header">
+        <div class="card-icon">💰</div>
+        <div class="card-title">Statistik Kesediaan Iuran</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-family:Cinzel,serif;font-size:1.6rem;font-weight:900;color:var(--gold2);" id="dashIuranYa">0</div>
+          <div style="font-size:11px;color:var(--gold2);font-weight:700;margin-top:3px;">✅ Bersedia Iuran</div>
+        </div>
+        <div style="background:var(--bg2);border:1.5px solid var(--border2);border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-family:Cinzel,serif;font-size:1.6rem;font-weight:900;color:var(--text3);" id="dashIuranTidak">0</div>
+          <div style="font-size:11px;color:var(--text3);font-weight:700;margin-top:3px;">🙏 Belum Bisa</div>
+        </div>
+      </div>
+      <div id="dashIuranBreakdown"></div>
+    </div>
+
+    <!-- REKAP PER KONTINGEN -->
+    <div class="card" style="animation-delay:0.2s;">
+      <div class="card-header">
+        <div class="card-icon">🗺️</div>
+        <div class="card-title">Rekap Per Kontingen / Provinsi</div>
+      </div>
+      <div class="card-sub">Jumlah peserta yang sudah memilih dari setiap kontingen</div>
+      <div id="dashKontingen"></div>
+    </div>
+
+    <!-- DAFTAR YANG SETUJU REUNI -->
+    <div class="card" style="animation-delay:0.25s;">
+      <div class="card-header">
+        <div class="card-icon">🎉</div>
+        <div class="card-title">Yang Setuju Reuni 2026</div>
+      </div>
+      <div class="card-sub" id="dashSetujuSub">—</div>
+      <div id="dashSetujuList"></div>
     </div>
 
   </div>
@@ -1746,6 +1910,172 @@ function showToast(msg) {
 document.getElementById('overlayAdmin').addEventListener('click',function(e){
   if(e.target===this) closeAdminModal();
 });
+
+// ============================================================
+// DASHBOARD (PUBLIC)
+// ============================================================
+function openDashboard() {
+  document.getElementById('pageVoting').classList.remove('active');
+  document.getElementById('pageDashboard').classList.add('active');
+  loadDashboard();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function exitDashboard() {
+  document.getElementById('pageDashboard').classList.remove('active');
+  document.getElementById('pageVoting').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+async function loadDashboard() {
+  const btn = document.getElementById('btnDashRefresh');
+  if (btn) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+
+  // Try fetch from Sheets first
+  const url = getGsUrl();
+  let votes = loadData().votes;
+
+  if (url && url.startsWith('https://script.google.com')) {
+    try {
+      const resp = await fetch(url + '?t=' + Date.now());
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        votes = data.votes;
+        const d = loadData();
+        d.votes = votes;
+        saveData(d);
+      }
+    } catch(e) {}
+  }
+
+  renderDashboard(votes);
+
+  const now = new Date().toLocaleString('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('dashLastUpdate').textContent = now;
+  if (btn) { btn.innerHTML = '🔄 Refresh'; btn.disabled = false; }
+}
+
+function renderDashboard(votes) {
+  const TARGET = 721;
+  const total   = votes.length;
+  const setuju  = votes.filter(v => v.pilihan === 'ya').length;
+  const tidak   = votes.filter(v => v.pilihan === 'tidak').length;
+  const belum   = Math.max(0, TARGET - total);
+  const pct     = Math.round(total / TARGET * 100);
+  const pS      = total > 0 ? Math.round(setuju / total * 100) : 0;
+  const pT      = total > 0 ? Math.round(tidak / total * 100) : 0;
+
+  // Progress
+  document.getElementById('dashTotalVoted').textContent = total + ' / ' + TARGET;
+  document.getElementById('dashBelum').textContent = belum;
+  document.getElementById('dashSetuju').textContent = setuju;
+  document.getElementById('dashTidak').textContent = tidak;
+  document.getElementById('dashProgressPct').textContent = pct + '% dari target';
+  setTimeout(() => {
+    const bar = document.getElementById('dashProgressBar');
+    if (bar) bar.style.width = Math.min(pct, 100) + '%';
+  }, 150);
+
+  // Bar hasil
+  document.getElementById('dashHasilSub').textContent = total > 0 ? total + ' suara masuk' : 'Belum ada suara';
+  document.getElementById('dashBarArea').innerHTML = `
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:7px;">
+        <span style="color:var(--green);">✅ Setuju Reuni</span><span>${pS}% (${setuju} suara)</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:8px;height:14px;overflow:hidden;border:1px solid var(--border);">
+        <div style="height:100%;border-radius:8px;background:linear-gradient(90deg,#059669,#34d399);transition:width 1.2s ease;width:0%;" id="dBarS"></div>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:7px;">
+        <span style="color:var(--red);">❌ Belum Bisa</span><span>${pT}% (${tidak} suara)</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:8px;height:14px;overflow:hidden;border:1px solid var(--border);">
+        <div style="height:100%;border-radius:8px;background:linear-gradient(90deg,#dc2626,#f87171);transition:width 1.2s ease;width:0%;" id="dBarT"></div>
+      </div>
+    </div>
+  `;
+  setTimeout(() => {
+    const bS = document.getElementById('dBarS');
+    const bT = document.getElementById('dBarT');
+    if (bS) bS.style.width = pS + '%';
+    if (bT) bT.style.width = pT + '%';
+  }, 200);
+
+  // Iuran
+  const iuranYa   = votes.filter(v => v.patungan === 'ya').length;
+  const iuranTdk  = votes.filter(v => v.patungan === 'tidak').length;
+  document.getElementById('dashIuranYa').textContent   = iuranYa;
+  document.getElementById('dashIuranTidak').textContent = iuranTdk;
+
+  // Iuran breakdown per nominal
+  const nominals = ['200000','300000','400000','500000','750000','1000000'];
+  const nomLabels = {'200000':'Rp 200rb','300000':'Rp 300rb','400000':'Rp 400rb','500000':'Rp 500rb','750000':'Rp 750rb','1000000':'Rp 1 jt'};
+  let iuranBreakdown = '';
+  nominals.forEach(n => {
+    const cnt = votes.filter(v => String(v.iuran) === n).length;
+    if (cnt > 0) {
+      iuranBreakdown += `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span style="font-weight:600;color:var(--navy);">${nomLabels[n]}</span>
+          <span style="background:var(--blue-l);color:var(--blue);font-weight:700;padding:3px 12px;border-radius:20px;font-size:12px;">${cnt} orang</span>
+        </div>`;
+    }
+  });
+  document.getElementById('dashIuranBreakdown').innerHTML = iuranBreakdown ||
+    '<div style="font-size:13px;color:var(--text3);text-align:center;padding:14px 0;font-style:italic;">Belum ada data iuran</div>';
+
+  // Rekap per kontingen
+  const konMap = {};
+  votes.forEach(v => {
+    const k = v.kontingen || 'Tidak Diisi';
+    if (!konMap[k]) konMap[k] = { total:0, setuju:0, tidak:0 };
+    konMap[k].total++;
+    if (v.pilihan === 'ya') konMap[k].setuju++;
+    else konMap[k].tidak++;
+  });
+  const sorted = Object.entries(konMap).sort((a,b) => b[1].total - a[1].total);
+  let konHTML = '';
+  if (sorted.length === 0) {
+    konHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:14px 0;font-style:italic;">Belum ada data</div>';
+  } else {
+    sorted.forEach(([prov, data]) => {
+      konHTML += `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(prov)}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">
+              <span style="color:var(--green);font-weight:600;">✅ ${data.setuju} setuju</span>
+              &nbsp;·&nbsp;
+              <span style="color:var(--red);font-weight:600;">❌ ${data.tidak} tidak</span>
+            </div>
+          </div>
+          <div style="flex-shrink:0;background:var(--navy);color:white;font-family:Cinzel,serif;font-size:14px;font-weight:900;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;">${data.total}</div>
+        </div>`;
+    });
+  }
+  document.getElementById('dashKontingen').innerHTML = konHTML;
+
+  // Daftar yang setuju reuni
+  const setujuList = votes.filter(v => v.pilihan === 'ya');
+  document.getElementById('dashSetujuSub').textContent = setujuList.length + ' peserta menyatakan setuju';
+  let setujuHTML = '';
+  if (setujuList.length === 0) {
+    setujuHTML = '<div style="font-size:13px;color:var(--text3);text-align:center;padding:14px 0;font-style:italic;">Belum ada yang setuju</div>';
+  } else {
+    setujuHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+    setujuList.forEach((v, i) => {
+      setujuHTML += `
+        <div style="background:var(--green-l);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:10px 12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--navy);line-height:1.3;">${esc(v.nama)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:3px;">${esc(v.kontingen||'—')}</div>
+        </div>`;
+    });
+    setujuHTML += '</div>';
+  }
+  document.getElementById('dashSetujuList').innerHTML = setujuHTML;
+}
 
 // ============================================================
 // INIT

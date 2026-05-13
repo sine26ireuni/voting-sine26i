@@ -1352,8 +1352,8 @@ function doPost(e) {
               <th>Alasan</th>
               <th>Konsep</th>
               <th>Lokasi</th>
-              <th>Iuran</th>
-              <th>Iuran</th>
+              <th>Patungan</th>
+              <th>Nominal Iuran</th>
               <th>Alasan Tdk Iuran</th>
               <th>Saran Lainnya</th>
               <th>Waktu</th>
@@ -1389,6 +1389,18 @@ function doPost(e) {
       Masuk ke Panel Admin
     </button>
     <button class="btn-outline" onclick="closeAdminModal()">Batal</button>
+  </div>
+</div>
+
+<!-- MODAL KONFIRMASI HAPUS DATA -->
+<div class="overlay" id="overlayHapus">
+  <div class="modal">
+    <h3>Konfirmasi Hapus Data</h3>
+    <p id="hapusNamaText">Yakin hapus data ini?</p>
+    <button class="btn-danger" onclick="hapusData()" style="width:100%;margin-top:8px;">
+      Ya, Hapus Data
+    </button>
+    <button class="btn-outline" onclick="tutupModalHapus()">Batal</button>
   </div>
 </div>
 
@@ -1741,7 +1753,7 @@ function renderAdmin(votesOverride) {
   else {
     empty.style.display='none';
     tbody.innerHTML = [...votes].reverse().map((v,i)=>`
-      <tr id="row-${esc(v.nip)}">
+      <tr id="row-${escAttr(v.nip)}">
         <td style="color:var(--text2);font-weight:600">${votes.length-i}</td>
         <td><strong>${esc(v.nama)}</strong></td>
         <td style="font-size:11px;color:var(--text2);font-family:monospace">${esc(v.nip)}</td>
@@ -1753,10 +1765,11 @@ function renderAdmin(votesOverride) {
         <td style="font-size:12px">${esc(v.lokasi||'—')}</td>
         <td><span style="font-size:11px;font-weight:700;color:${v.patungan==='ya'?'var(--green)':'var(--text3)'}">${v.patungan==='ya'?'✅ Bersedia':v.patungan==='tidak'?'🙏 Belum Bisa':'—'}</span></td>
         <td style="font-size:12px;color:var(--gold2);font-weight:600">${v.iuran?'Rp '+parseInt(v.iuran).toLocaleString('id-ID'):'—'}</td>
+        <td style="font-size:11px;color:var(--text2);font-style:italic;max-width:180px">${v.alasanIuran?'"'+esc(v.alasanIuran)+'"':'—'}</td>
         <td style="font-size:11px;color:var(--text2);font-style:italic;max-width:180px">${v.saran?'"'+esc(v.saran)+'"':'—'}</td>
         <td style="font-size:11px;color:var(--text2);white-space:nowrap">${v.waktu}</td>
         <td>
-          <button onclick="konfirmasiHapus('${esc(v.nip)}','${esc(v.nama)}')"
+          <button class="btn-delete-vote" data-nip="${escAttr(v.nip)}" data-nama="${escAttr(v.nama)}"
             style="padding:5px 12px;border-radius:7px;border:none;background:var(--red-l);
                    color:var(--red);font-size:11px;font-weight:700;cursor:pointer;
                    transition:all 0.2s;white-space:nowrap;"
@@ -1767,6 +1780,9 @@ function renderAdmin(votesOverride) {
         </td>
       </tr>
     `).join('');
+    tbody.querySelectorAll('.btn-delete-vote').forEach(btn => {
+      btn.addEventListener('click', () => konfirmasiHapus(btn.dataset.nip, btn.dataset.nama));
+    });
   }
 }
 
@@ -1860,7 +1876,7 @@ function exportCSV() {
   const d = loadData();
   if (d.votes.length === 0) { showToast('⚠️ Belum ada data untuk diexport'); return; }
 
-  const header = ['No','Nama Lengkap','NIP','Asal Kontingen','Instansi / Unit Kerja','Pilihan','Alasan Tidak Setuju','Konsep Kegiatan','Lokasi IPDN','Saran & Masukan','Waktu'];
+  const header = ['No','Nama Lengkap','NIP','Asal Kontingen','Instansi / Unit Kerja','Pilihan','Alasan Tidak Setuju','Patungan','Nominal Iuran','Alasan Tidak Iuran','Konsep Kegiatan','Lokasi IPDN','Saran & Masukan','Waktu'];
   const rows = d.votes.map((v, i) => [
     i + 1,
     v.nama || '',
@@ -1869,6 +1885,9 @@ function exportCSV() {
     v.instansi || '',
     v.pilihan === 'ya' ? 'Setuju' : 'Tidak Setuju',
     v.alasan || '',
+    v.patungan === 'ya' ? 'Bersedia' : (v.patungan === 'tidak' ? 'Belum Bisa' : ''),
+    v.iuran || '',
+    v.alasanIuran || '',
     v.konsep || '',
     v.lokasi || '',
     v.saran || '',
@@ -1911,6 +1930,10 @@ function togglePanduan() {
 // ============================================================
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function escAttr(s) {
+  return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function showToast(msg) {
@@ -2140,12 +2163,18 @@ async function hapusData() {
   }
 
   // Overlay click to close — inside init so DOM is ready
-  document.getElementById('overlayAdmin').addEventListener('click',function(e){
-    if(e.target===this) closeAdminModal();
-  });
-  document.getElementById('overlayHapus').addEventListener('click',function(e){
-    if(e.target===this) tutupModalHapus();
-  });
+  const overlayAdmin = document.getElementById('overlayAdmin');
+  if (overlayAdmin) {
+    overlayAdmin.addEventListener('click',function(e){
+      if(e.target===this) closeAdminModal();
+    });
+  }
+  const overlayHapus = document.getElementById('overlayHapus');
+  if (overlayHapus) {
+    overlayHapus.addEventListener('click',function(e){
+      if(e.target===this) tutupModalHapus();
+    });
+  }
 })();
 </script>
 </body>
